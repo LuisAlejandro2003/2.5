@@ -220,30 +220,27 @@ def analyze_syntactic(code):
 def analyze_semantic(code):
   errors = []
   corrected_code = code
-  variable_types = {}
+  declared_variables = set()  # Paso 1: Registro de variables declaradas
 
   # Identificar y almacenar los tipos de las variables
   for var_declaration in re.findall(r"\b(cadena|entero)\s+(\w+)\s*=", code):
-    var_type, var_name = var_declaration
-    variable_types[var_name] = var_type
+    _, var_name = var_declaration
+    declared_variables.add(var_name)  # Almacenar variables declaradas
 
   # Verificar la asignación correcta de valores a variables
-  assignments = re.findall(r"\bcadena\s+\w+\s*=\s*\w+;", code)
-  for assignment in assignments:
-    if not re.match(r"\bcadena\s+\w+\s*=\s*\".*\";", assignment):
-      variable_name = re.search(r"\bcadena\s+(\w+)\s*=", assignment).group(1)
-      errors.append(f"Error semántico en la asignación de '{variable_name}'. Debe ser una cadena entre comillas.")
-  
+  # (Código existente)
+
   # Verificar comparaciones lógicas
   logical_checks = re.findall(r"si\s*\((.+)\)", code)
   for check in logical_checks:
-    match = re.search(r"(\w+)\s*(==|!=|>|<|>=|<=)\s*(\w+|\".*\")", check)
+    match = re.search(r"(\w+)\s*(==|!=|>|<|>=|<=)\s*(\w+|\".*\"|\d+)", check)
     if match:
       left_var, _, right_var = match.groups()
-      left_type = variable_types.get(left_var, None)
-      right_type = 'cadena' if right_var.startswith('"') else variable_types.get(right_var, None)
-      if left_type and right_type and left_type != right_type:
-        errors.append(f"Error semántico en la condición 'si ({check})'. Las variables deben ser del mismo tipo.")
+      # Verificar si las variables han sido declaradas
+      if left_var not in declared_variables and not left_var.isdigit():
+        errors.append(f"Error semántico: La variable '{left_var}' no ha sido declarada.")
+      if right_var not in declared_variables and not right_var.replace('"', '').isdigit() and not right_var.startswith('"'):
+        errors.append(f"Error semántico: La variable '{right_var}' no ha sido declarada.")
     else:
       errors.append(f"Error semántico en la condición 'si ({check})'. Formato incorrecto de comparación.")
 
@@ -251,7 +248,6 @@ def analyze_semantic(code):
     return "Uso correcto de las estructuras semánticas", corrected_code
   else:
     return " ".join(errors), corrected_code
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
